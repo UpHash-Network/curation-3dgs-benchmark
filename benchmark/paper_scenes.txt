@@ -1,0 +1,15 @@
+# Scenes included in the paper's main table (order = table order).
+# Selection criterion for the DL3DV subset: one scene per capture category
+# (outdoor architecture / reflective glass / vegetation / retail clutter /
+# museum glass case), chosen before inspecting per-scene outcomes.
+# All completed results remain in results/ and are reported in FINAL_REPORT.
+barn
+chair
+horse
+ignatius
+stone_dog
+dl3dv_032dee9f
+dl3dv_165f5af8
+dl3dv_49381681
+dl3dv_2beaca31
+dl3dv_1ba74c22

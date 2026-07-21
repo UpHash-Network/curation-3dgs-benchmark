@@ -1,0 +1,11 @@
+# Windows-side benchmark deps (.venv). The tool itself needs only ../requirements.txt.
+opencv-python>=4.8
+numpy
+tqdm
+matplotlib
+gdown>=5          # dataset download (Tanks and Temples via Google Drive)
+# WSL-side training deps are installed by setup_wsl_env.sh (~/fx-venv):
+#   torch 2.4.1+cu124, torchvision 0.19.1, gsplat 1.5.3 (prebuilt wheel),
+#   numpy<2, opencv-python-headless 4.10, tyro, imageio[ffmpeg],
+#   torchmetrics[image], tensorboard, splines, scikit-learn, tensorly,
+#   matplotlib, jaxtyping, ninja, rich, pycolmap (rmbrualla parser)
