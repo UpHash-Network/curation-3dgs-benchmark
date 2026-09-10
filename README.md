@@ -1,6 +1,8 @@
 # How Much Does Input Curation Alone Improve 3DGS from Casual Video?
 
-Anonymized code release for the SIGGRAPH Asia 2026 Posters submission.
+Code release for the SIGGRAPH Asia 2026 poster
+*"How Much Does Input Curation Alone Improve 3D Gaussian Splatting from
+Casual Video?"* (Oshio et al., SA Posters '26, Kuala Lumpur).
 
 This repository contains (1) the evaluated frame-extraction tool and (2) the
 complete A/B benchmark protocol used in the paper, so that every number in the
@@ -50,4 +52,18 @@ joint registration of held-out test frames, metrics computed only on test
 views registered in *both* arms, fixed seed, and no blur handling in the
 uniform arm (the standard `ffmpeg` recipe).
 
-License: MIT (see LICENSE). Public de-anonymized release upon acceptance.
+License: MIT (see LICENSE).
+
+## Citation
+
+```bibtex
+@inproceedings{oshio2026curation,
+  author    = {Oshio, Yuki and Fkiharu, Yuya and Shiki, Akane and
+               Kiyoyama, Yukito and Kihara, Miki and Ito, Ai and Imai, Shota},
+  title     = {How Much Does Input Curation Alone Improve 3D Gaussian
+               Splatting from Casual Video?},
+  booktitle = {SIGGRAPH Asia 2026 Posters (SA Posters '26)},
+  year      = {2026},
+  publisher = {ACM}
+}
+```
