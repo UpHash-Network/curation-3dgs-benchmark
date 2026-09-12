@@ -58,7 +58,7 @@ License: MIT (see LICENSE).
 
 ```bibtex
 @inproceedings{oshio2026curation,
-  author    = {Oshio, Yuki and Fkiharu, Yuya and Shiki, Akane and
+  author    = {Oshio, Yuki and Fukiharu, Yuya and Shiki, Akane and
                Kiyoyama, Yukito and Kihara, Miki and Ito, Ai and Imai, Shota},
   title     = {How Much Does Input Curation Alone Improve 3D Gaussian
                Splatting from Casual Video?},
