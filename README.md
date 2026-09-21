@@ -4,6 +4,10 @@ Code release for the SIGGRAPH Asia 2026 poster
 *"How Much Does Input Curation Alone Improve 3D Gaussian Splatting from
 Casual Video?"* (Oshio et al., SA Posters '26, Kuala Lumpur).
 
+[**Paper (3-page abstract, PDF)**](paper.pdf) ·
+[**Project page**](https://uphash-network.github.io/curation-3dgs-benchmark/) ·
+DOI: [10.1145/3829333.3847887](https://doi.org/10.1145/3829333.3847887)
+
 This repository contains (1) the evaluated frame-extraction tool and (2) the
 complete A/B benchmark protocol used in the paper, so that every number in the
 abstract can be reproduced end to end.

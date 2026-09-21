@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Much Does Input Curation Alone Improve 3DGS from Casual Video?</title>
+<meta name="description" content="Parallax-based keyframe selection and blur rejection for video-to-3DGS pipelines, with automatic COLMAP configuration. SIGGRAPH Asia 2026 Posters.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FCFCFA;
+    --ink: #14161A;
+    --muted: #6A7076;
+    --select: #2547D0;      /* keyframe / accent */
+    --reject: #C9CDD2;      /* discarded frames */
+    --line: #E4E6E3;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Source Serif 4", Georgia, serif;
+    font-size: 18px;
+    line-height: 1.65;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- header ---------- */
+  header { padding: 72px 0 40px; text-align: center; }
+  .venue {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.08em;
+    color: var(--select); text-transform: uppercase;
+  }
+  h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700; font-size: clamp(28px, 4.6vw, 44px);
+    line-height: 1.15; letter-spacing: -0.015em;
+    margin: 16px auto 24px; max-width: 780px;
+  }
+  .authors { font-size: 17px; }
+  .authors a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .authors a:hover, .authors a:focus-visible { border-color: var(--select); color: var(--select); }
+  .affil { color: var(--muted); font-size: 15px; margin-top: 6px; }
+  .links { margin-top: 28px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .pill {
+    font-family: "Space Grotesk", sans-serif; font-weight: 500; font-size: 15px;
+    color: var(--paper); background: var(--ink);
+    padding: 9px 20px; border-radius: 999px; text-decoration: none;
+    transition: background 0.15s ease;
+  }
+  .pill:hover, .pill:focus-visible { background: var(--select); }
+  .pill.alt { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+  .pill.alt:hover, .pill.alt:focus-visible { border-color: var(--select); color: var(--select); background: transparent; }
+
+  /* ---------- filmstrip hero (signature) ---------- */
+  .strip-section { padding: 8px 0 12px; }
+  .filmstrip {
+    display: grid; grid-template-columns: repeat(18, 1fr); gap: 5px;
+    padding: 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: #fff;
+  }
+  .cell {
+    aspect-ratio: 3 / 4; border-radius: 3px; position: relative;
+    background: linear-gradient(160deg, #AEB6C2 0%, #8E97A6 60%, #7B8494 100%);
+    transition: opacity 0.4s ease, box-shadow 0.4s ease, filter 0.4s ease;
+  }
+  /* blurred (rejected) frames */
+  .cell.blur { filter: blur(1.6px) saturate(0.5); }
+  /* after the scan passes: dim rejected, ring selected */
+  .cell.done { opacity: 0.28; }
+  .cell.done.key {
+    opacity: 1; filter: none;
+    box-shadow: 0 0 0 2.5px var(--select);
+  }
+  .cell.done.key::after {
+    content: ""; position: absolute; inset: auto 0 -14px 0; height: 3px;
+    background: var(--select); border-radius: 2px;
+  }
+  .strip-caption {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+    margin-top: 18px;
+  }
+  .strip-caption b { color: var(--select); font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { .cell { transition: none; } }
+
+  /* ---------- body sections ---------- */
+  section { padding: 44px 0; border-top: 1px solid var(--line); }
+  section:first-of-type { border-top: none; }
+  h2 {
+    font-family: "Space Grotesk", sans-serif; font-weight: 700;
+    font-size: 24px; letter-spacing: -0.01em; margin-bottom: 18px;
+  }
+  p + p { margin-top: 14px; }
+  .abstract p { font-size: 19px; }
+
+  /* method steps */
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 10px; }
+  .step h3 {
+    font-family: "Space Grotesk", sans-serif; font-size: 17px; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .step .tag {
+    font-family: var(--mono); font-size: 11.5px; color: var(--select);
+    letter-spacing: 0.06em; text-transform: uppercase; display: block; margin-bottom: 10px;
+  }
+  .step p { font-size: 15.5px; color: #3A3F45; line-height: 1.6; }
+
+  /* results placeholder */
+  .placeholder {
+    border: 1.5px dashed var(--reject); border-radius: 10px;
+    padding: 42px 24px; text-align: center; color: var(--muted);
+    font-family: var(--mono); font-size: 14px; background: #fff;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 15.5px; }
+  th, td { padding: 9px 12px; text-align: right; }
+  th { font-family: "Space Grotesk", sans-serif; font-size: 14px; border-bottom: 2px solid var(--ink); }
+  td { border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 14px; }
+  th:first-child, td:first-child { text-align: left; font-family: "Source Serif 4", serif; font-size: 15.5px; }
+  td.win { color: var(--select); font-weight: 600; }
+
+  /* bibtex */
+  pre {
+    background: var(--ink); color: #E8EAE6; border-radius: 10px;
+    padding: 22px; overflow-x: auto;
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.55;
+  }
+  .copy-note { font-family: var(--mono); font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+
+  footer {
+    padding: 40px 0 64px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 14.5px;
+  }
+  footer a { color: var(--muted); }
+
+  @media (max-width: 680px) {
+    body { font-size: 16.5px; }
+    .filmstrip { grid-template-columns: repeat(9, 1fr); }
+    .cell:nth-child(n+10) { display: none; }
+    .steps { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="venue">SIGGRAPH Asia 2026 · Posters</div>
+  <h1>How Much Does Input Curation Alone Improve 3D&nbsp;Gaussian Splatting from Casual Video?</h1>
+  <div class="authors">
+    Yuki&nbsp;Oshio<sup>1</sup> · Yuya&nbsp;Fukiharu<sup>1</sup> ·
+    Akane&nbsp;Shiki<sup>1</sup> · Yukito&nbsp;Kiyoyama<sup>1</sup> ·
+    Miki&nbsp;Kihara<sup>1</sup> · Ai&nbsp;Ito<sup>1</sup> ·
+    Shota&nbsp;Imai<sup>1</sup>
+  </div>
+  <div class="affil"><sup>1</sup>UPHASH Inc.</div>
+  <nav class="links" aria-label="Resources">
+    <a class="pill" href="https://github.com/UpHash-Network/curation-3dgs-benchmark/blob/master/paper.pdf">Paper (3p)</a>
+    <a class="pill" href="https://github.com/UpHash-Network/curation-3dgs-benchmark">Code</a>
+    <a class="pill alt" href="https://doi.org/10.1145/3829333.3847887">DOI</a>
+  </nav>
+</header>
+
+<div class="wrap strip-section" aria-hidden="true">
+  <div class="filmstrip" id="strip"></div>
+  <div class="strip-caption">
+    <span>input video · 30&thinsp;fps</span>
+    <span><b>■ selected keyframes</b> &nbsp;·&nbsp; dimmed = redundant &nbsp;·&nbsp; blurred = rejected</span>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <section class="abstract">
+    <h2>Abstract</h2>
+    <p>
+      The standard recipe for turning a phone video into a 3D Gaussian Splatting
+      reconstruction begins with fixed-interval frame extraction — a step that
+      silently admits motion blur, redundant views, and uneven baselines into the
+      pipeline. We quantify how much reconstruction quality can be recovered by
+      fixing only this step. Our fully automatic tool selects keyframes by tracked
+      parallax rather than time, rejects blurred frames against an adaptive
+      per-video threshold, and self-diagnoses its output to choose the COLMAP
+      matching configuration. Across ten scenes from Tanks&nbsp;and&nbsp;Temples
+      source videos, DL3DV captures, and casual phone footage, the answer is:
+      no improvement. At an identical frame budget, curation lowers mean
+      held-out PSNR by 0.70&thinsp;dB (bootstrap CI excludes zero) —
+      even though it genuinely improves SfM statistics. The reason is a strong
+      per-view correlation: quality differences track the distance to the
+      nearest training view (Spearman ρ = &minus;0.63 over 752 views) —
+      curation wins where its spacing is locally denser and loses where
+      parallax-triggering thins coverage. Synthesizing exposure blur from
+      60&thinsp;fps video (GoPro-style averaging) closes the mean PSNR gap
+      monotonically, from &minus;0.93&thinsp;dB at blur-0 to
+      &minus;0.03&thinsp;dB at 8-frame exposure — near parity only at the
+      heaviest degradation; on ordinary captures, temporal coverage — not
+      frame sharpness — predicts quality.
+    </p>
+  </section>
+
+  <section>
+    <h2>Method</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="tag">Pass 1 · Analyze</span>
+        <h3>The video tunes itself</h3>
+        <p>A sampling pass measures the sharpness distribution and cumulative
+        feature-track motion, from which every threshold — parallax trigger,
+        blur floor, output resolution — is derived. The only input is the video.</p>
+      </div>
+      <div class="step">
+        <span class="tag">Pass 2 · Select</span>
+        <h3>Parallax, not time</h3>
+        <p>A keyframe fires when median tracked displacement exceeds the derived
+        threshold; the sharpest frame in a short buffer is kept. Redundant and
+        blurred frames never reach the reconstruction.</p>
+      </div>
+      <div class="step">
+        <span class="tag">Pass 3 · Configure</span>
+        <h3>Self-diagnosed COLMAP</h3>
+        <p>The extracted sequence is QC'd for parallax gaps, and a ready-to-run
+        COLMAP script is generated — exhaustive, sequential, or loop-detection
+        matching — with the reasoning recorded alongside.</p>
+      </div>
+    </div>
+    <img src="assets/selection_chair.webp" style="width:100%; margin-top:26px; border-radius:10px"
+         alt="selection behavior on the chair scene: timeline of 321 selected keyframes out of 6308 frames with per-keyframe sharpness overlaid">
+  </section>
+
+  <section>
+    <h2>Results</h2>
+    <p>
+      Both arms receive an identical frame budget, identical COLMAP settings, and
+      identical 3DGS training (gsplat, fixed seed); held-out test views are shared.
+      Only the selection of training frames differs.
+    </p>
+    <!-- TODO: replace with generated table from benchmark results -->
+    <table>
+      <thead>
+        <tr><th>Scene</th><th>PSNR ↑</th><th>SSIM ↑</th><th>LPIPS ↓</th><th>Reg. %</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Uniform (avg, 10 scenes)</td><td>25.62</td><td>0.842</td><td>0.202</td><td>98.8</td></tr>
+        <tr><td>Ours (avg, 10 scenes)</td><td>24.92</td><td>0.832</td><td>0.205</td><td class="win">99.5</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:14px">
+      Across ten scenes the mean is <em>negative</em> for curation
+      (&minus;0.70&thinsp;dB PSNR, 95% CI [&minus;1.10,&nbsp;&minus;0.33];
+      SSIM likewise; LPIPS/DISTS/FLIP neutral-to-negative). The single
+      per-scene win (+0.17&thinsp;dB on a shaky handheld clip) lies within
+      seed noise (±0.2–0.4&thinsp;dB over three seeds). Yet curation
+      <em>does</em> deliver at the SfM stage: lower reprojection error, longer
+      tracks, more 3D points, and better registration where registration is
+      hard (95% vs 88%).
+    </p>
+    <img src="assets/coverage.webp" style="width:100%; margin-top:22px; border-radius:10px"
+         alt="scatter of per-view PSNR difference against the difference in temporal distance to the nearest training view over 752 test views; strong negative correlation, Spearman rho -0.63">
+    <p style="margin-top:14px">
+      <b>Why:</b> per-view quality is strongly predicted by local temporal coverage.
+      The PSNR difference on each of 752 held-out views tracks which arm has
+      the temporally nearer training view (Spearman ρ = &minus;0.63;
+      &minus;0.58…&minus;0.74 in every scene): curation wins where its spacing
+      is locally denser (+0.69&thinsp;dB) and loses where parallax-triggering
+      thins coverage (&minus;1.57&thinsp;dB).
+    </p>
+    <img src="assets/qualitative.webp" style="width:100%; margin-top:22px; border-radius:10px"
+         alt="chair scene, held-out test view with a large per-view gap: uniform baseline render degraded by blurred training frames, ours sharper, ground truth, with crop enlargements below">
+    <img src="assets/blur_doseresponse.webp" style="width:100%; margin-top:22px; border-radius:10px"
+         alt="synthetic-blur dose-response over three scenes: the mean PSNR gap between curation and uniform sampling closes monotonically as simulated exposure blur grows from 0 to 8 averaged frames; LPIPS shows the same trend without strict monotonicity">
+    <p style="margin-top:14px">
+      A controlled degradation study — exposure blur synthesized from
+      60&thinsp;fps video by averaging 1/2/4/8 consecutive frames in linear
+      color space, with scene, trajectory, lighting, codec, and the same sharp
+      test views held fixed — shows the mean PSNR gap closing monotonically
+      as degradation grows (&minus;0.93 → &minus;0.81 → &minus;0.70 →
+      &minus;0.03&thinsp;dB, near parity at the heaviest level; one scene
+      flips to +0.90&thinsp;dB).
+    </p>
+  </section>
+
+  <section>
+    <h2>BibTeX</h2>
+<pre>@inproceedings{oshio2026curation,
+  title     = {How Much Does Input Curation Alone Improve
+               3D Gaussian Splatting from Casual Video?},
+  author    = {Oshio, Yuki and Fukiharu, Yuya and Shiki, Akane and
+               Kiyoyama, Yukito and Kihara, Miki and Ito, Ai and Imai, Shota},
+  booktitle = {SIGGRAPH Asia 2026 Posters (SA Posters '26)},
+  year      = {2026},
+  publisher = {ACM},
+  doi       = {10.1145/3829333.3847887}
+}</pre>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    Code released under the MIT License. Page template hand-rolled; no trackers.
+    &nbsp;·&nbsp; <a href="https://github.com/UpHash-Network/curation-3dgs-benchmark">GitHub</a>
+  </div>
+</footer>
+
+<script>
+  // Filmstrip: deterministic layout, scan-line reveal on load.
+  (function () {
+    const strip = document.getElementById("strip");
+    const N = 18;
+    // pattern: which frames are blurred, which get selected as keyframes
+    const blurred  = new Set([2, 3, 8, 13, 14]);
+    const keyframes = new Set([0, 4, 7, 11, 16]);
+    const cells = [];
+    for (let i = 0; i < N; i++) {
+      const c = document.createElement("div");
+      c.className = "cell" + (blurred.has(i) ? " blur" : "");
+      // subtle per-frame hue drift so the strip reads as a moving camera
+      c.style.background =
+        `linear-gradient(${150 + i * 4}deg, hsl(${215 - i * 2} 18% ${68 - (i % 5) * 3}%), hsl(${218 - i * 2} 16% 52%))`;
+      strip.appendChild(c);
+      cells.push(c);
+    }
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reveal = (i) => {
+      cells[i].classList.add("done");
+      if (keyframes.has(i)) cells[i].classList.add("key");
+    };
+    if (reduced) {
+      cells.forEach((_, i) => reveal(i));
+    } else {
+      cells.forEach((_, i) => setTimeout(() => reveal(i), 350 + i * 90));
+    }
+  })();
+</script>
+
+</body>
+</html>
